@@ -1,5 +1,5 @@
-import { CONFIG } from "./config.js";
-import { api } from "./api.js";
+import { CONFIG } from "./config.js?v=20260715-3";
+import { api } from "./api.js?v=20260715-3";
 import { resetData, state } from "./state.js";
 import { employeeById, entityById, readEmployeeForm, readEntityForm } from "./forms.js?v=20260715-1";
 import { confirmDialog, employeeForm, entityForm, loginScreen, renderShell, renderView, showToast } from "./ui.js?v=20260715-1";

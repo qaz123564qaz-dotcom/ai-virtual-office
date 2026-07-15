@@ -1,4 +1,4 @@
-import { CONFIG } from "./config.js";
+import { CONFIG } from "./config.js?v=20260715-3";
 
 async function request(action, payload = {}) {
   if (!CONFIG.API_URL) throw new Error("尚未設定 API_URL，請依 README 建立 frontend/js/config.js。");
@@ -26,4 +26,3 @@ export const api = {
   saveEntity: (credential, entity, data) => request(`${entity}.save`, { credential, data }),
   deleteEntity: (credential, entity, id) => request(`${entity}.delete`, { credential, data: { id } }),
 };
-
