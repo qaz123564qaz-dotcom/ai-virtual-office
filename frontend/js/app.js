@@ -114,6 +114,21 @@ document.addEventListener("click", async (event) => {
 });
 
 document.addEventListener("submit", (event) => { if (event.target.id === "employee-form") { event.preventDefault(); saveEmployee(event.target); } if (event.target.id === "entity-form") { event.preventDefault(); saveEntity(event.target); } });
+// Capture submit at the document boundary.  This prevents native GET form
+// navigation even if a browser extension or other listener interrupts bubbling.
+document.addEventListener("submit", (event) => {
+  if (event.target.id === "employee-form") {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    saveEmployee(event.target);
+  }
+  if (event.target.id === "entity-form") {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    saveEntity(event.target);
+  }
+}, true);
+
 document.addEventListener("input", debounce((event) => { if (event.target.id === "query") { state.filters.query = event.target.value; renderView(); } }, 180));
 document.addEventListener("change", (event) => { const map = { "platform-filter":"platform", "department-filter":"departmentId", "status-filter":"statusId", "tag-filter":"tagId" }; if (map[event.target.id]) { state.filters[map[event.target.id]] = event.target.value; renderView(); } });
 
