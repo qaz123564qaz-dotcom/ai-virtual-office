@@ -12,7 +12,37 @@
   white-space: nowrap;
 }
 
+.department-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+}
+
+.department-toggle {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  color: var(--department-color);
+  background: color-mix(in srgb, var(--department-color) 10%, white);
+  cursor: pointer;
+}
+
+.department-toggle:hover,
+.department-toggle:focus-visible {
+  background: color-mix(in srgb, var(--department-color) 18%, white);
+}
+
+.department-toggle span { transition: transform .18s ease; }
+.department-toggle[aria-expanded="false"] span { transform: rotate(-90deg); }
+.department-body > p { margin: 8px 0 15px; color: var(--muted); min-height: 20px; font-size: .87rem; }
+
 @media (max-width: 680px) {
   .department-heading { align-items: flex-start; flex-wrap: wrap; }
+  .department-title { min-width: 0; }
   .department-actions { width: 100%; justify-content: space-between; }
 }

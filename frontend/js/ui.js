@@ -1,4 +1,4 @@
-import { state } from "./state.js?v=20260715-4";
+import { state } from "./state.js?v=20260715-5";
 import { byId, escapeHtml, formatDate, initials, safeUrl } from "./utils.js";
 
 const platformClass = (platform) => platform === "Gem" ? "gem" : "gpt";
@@ -47,6 +47,10 @@ function matches(employee) {
   return !employee.isDeleted && (!f.query || haystack.includes(f.query.toLowerCase())) && (!f.platform || employee.platform === f.platform) && (!f.departmentId || employee.departmentIds.includes(f.departmentId)) && (!f.statusId || employee.statusId === f.statusId) && (!f.tagId || employee.tagIds.includes(f.tagId));
 }
 
+function hasActiveFilter() {
+  return Object.values(state.filters).some(Boolean);
+}
+
 function employeeCard(employee, compact = false) {
   const departmentNames = employee.departmentIds.map((id) => label(state.departments, id));
   const tagNames = employee.tagIds.map((id) => label(state.tags, id));
@@ -57,7 +61,8 @@ function employeeCard(employee, compact = false) {
 export function officeView() {
   const content = document.querySelector("#content");
   const departments = [...state.departments].filter((d) => !d.isDeleted).sort((a, b) => a.sortOrder - b.sortOrder);
-  content.innerHTML = `<section class="page-heading"><div><p class="eyebrow">YOUR AI TEAM</p><h1>虛擬辦公室</h1><p>以部門整理並快速啟用你的 AI 員工。</p></div><div class="stat"><strong>${state.employees.filter((e) => !e.isDeleted).length}</strong><span>位 AI 員工</span></div></section>${filterBar()}<section class="department-grid">${departments.map((department) => { const primary = state.employees.filter((e) => e.primaryDepartmentId === department.id && matches(e)).sort((a,b) => a.sortOrder - b.sortOrder); const secondary = state.employees.filter((e) => e.primaryDepartmentId !== department.id && e.departmentIds.includes(department.id) && matches(e)); return `<section class="department-card" data-department-id="${department.id}" style="--department-color:${escapeHtml(department.color || "#6366f1")}"><div class="department-heading"><div><span class="department-icon">${escapeHtml(department.icon || "◈")}</span><h2>${escapeHtml(department.name)}</h2></div><div class="department-actions"><button class="button ghost compact-button" data-new-employee data-department-id="${department.id}">＋ 新增 AI 員工</button><button class="text-button" data-edit-entity="department" data-id="${department.id}">管理</button></div></div><p>${escapeHtml(department.description || "")}</p><div class="employee-list">${primary.map((employee) => employeeCard(employee)).join("") || `<p class="empty-inline">沒有符合條件的主要員工。</p>`}${secondary.length ? `<div class="secondary-group"><small>協作員工</small>${secondary.map((employee) => `${employeeCard(employee, true)}<p class="primary-hint">主要部門：${escapeHtml(label(state.departments, employee.primaryDepartmentId))}</p>`).join("")}</div>` : ""}</div></section>`; }).join("") || `<section class="empty-state"><h2>還沒有部門</h2><p>先在設定頁建立部門，再新增 AI 員工。</p></section>`}</section>`;
+  const filtering = hasActiveFilter();
+  content.innerHTML = `<section class="page-heading"><div><p class="eyebrow">YOUR AI TEAM</p><h1>虛擬辦公室</h1><p>以部門整理並快速啟用你的 AI 員工。</p></div><div class="stat"><strong>${state.employees.filter((e) => !e.isDeleted).length}</strong><span>位 AI 員工</span></div></section>${filterBar()}<section class="department-grid">${departments.map((department) => { const primary = state.employees.filter((e) => e.primaryDepartmentId === department.id && matches(e)).sort((a,b) => a.sortOrder - b.sortOrder); const secondary = state.employees.filter((e) => e.primaryDepartmentId !== department.id && e.departmentIds.includes(department.id) && matches(e)); const expanded = filtering ? primary.length > 0 || secondary.length > 0 : state.departmentExpanded[department.id] === true; const bodyId = `department-body-${department.id}`; return `<section class="department-card" data-department-id="${department.id}" style="--department-color:${escapeHtml(department.color || "#6366f1")}"><div class="department-heading"><div class="department-title"><button class="department-toggle" data-toggle-department="${department.id}" aria-expanded="${expanded}" aria-controls="${bodyId}" aria-label="${expanded ? "收合" : "展開"}${escapeHtml(department.name)}"><span aria-hidden="true">⌄</span></button><span class="department-icon">${escapeHtml(department.icon || "◈")}</span><h2>${escapeHtml(department.name)}</h2></div><div class="department-actions"><button class="button ghost compact-button" data-new-employee data-department-id="${department.id}">＋ 新增 AI 員工</button><button class="text-button" data-edit-entity="department" data-id="${department.id}">管理</button></div></div><div id="${bodyId}" class="department-body" ${expanded ? "" : "hidden"}><p>${escapeHtml(department.description || "")}</p><div class="employee-list">${primary.map((employee) => employeeCard(employee)).join("") || `<p class="empty-inline">沒有符合條件的主要員工。</p>`}${secondary.length ? `<div class="secondary-group"><small>協作員工</small>${secondary.map((employee) => `${employeeCard(employee, true)}<p class="primary-hint">主要部門：${escapeHtml(label(state.departments, employee.primaryDepartmentId))}</p>`).join("")}</div>` : ""}</div></div></section>`; }).join("") || `<section class="empty-state"><h2>還沒有部門</h2><p>先在設定頁建立部門，再新增 AI 員工。</p></section>`}</section>`;
 }
 
 function entityPanel(entity, title, fields) {

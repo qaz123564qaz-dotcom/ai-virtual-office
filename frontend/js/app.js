@@ -1,14 +1,30 @@
 import { CONFIG } from "./config.js?v=20260715-3";
 import { api } from "./api.js?v=20260715-4";
-import { resetData, state } from "./state.js?v=20260715-4";
+import { resetData, state } from "./state.js?v=20260715-5";
 import { employeeById, entityById, readEmployeeForm, readEntityForm } from "./forms.js?v=20260715-5";
-import { confirmDialog, employeeForm, entityForm, loginScreen, renderShell, renderView as renderBaseView, showToast } from "./ui.js?v=20260715-7";
+import { confirmDialog, employeeForm, entityForm, loginScreen, renderShell, renderView as renderBaseView, showToast } from "./ui.js?v=20260715-8";
 import { cancelEmployeeDrafts, cancelEntityDraft, clearAllReorderDrafts, enhanceReorderUI, hasAnyReorderDrafts, hasEmployeeDrafts, initializeReorderController } from "./reorder.js?v=20260715-4";
 import { debounce, safeUrl } from "./utils.js";
 
 const app = document.querySelector("#app");
 const modalRoot = document.querySelector("#modal-root");
 const SESSION_CREDENTIAL_KEY = "ai-virtual-office.google-id-token";
+const DEPARTMENT_EXPANSION_KEY_PREFIX = "ai-virtual-office.department-expanded.";
+
+function departmentExpansionKey() {
+  return `${DEPARTMENT_EXPANSION_KEY_PREFIX}${state.user?.id || state.user?.email || "anonymous"}`;
+}
+
+function loadDepartmentExpansion() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(departmentExpansionKey()) || "{}");
+    state.departmentExpanded = saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+  } catch (_) { state.departmentExpanded = {}; }
+}
+
+function saveDepartmentExpansion() {
+  try { localStorage.setItem(departmentExpansionKey(), JSON.stringify(state.departmentExpanded)); } catch (_) { /* local storage is optional */ }
+}
 
 function closeModal() { modalRoot.innerHTML = ""; }
 function showError(form, error) { const target = form.querySelector("#form-error"); target.hidden = false; target.textContent = error.message || error; }
@@ -78,6 +94,7 @@ async function handleCredential(response) {
     state.statuses = data.statuses || [];
     state.tags = data.tags || [];
     state.user = data.user || state.user;
+    loadDepartmentExpansion();
     clearAllReorderDrafts();
     sessionStorage.setItem(SESSION_CREDENTIAL_KEY, state.credential);
     renderShell();
@@ -164,6 +181,13 @@ document.addEventListener("click", async (event) => {
   if (target.matches("[data-cancel-entity-order]")) { cancelEntityDraft(target.dataset.cancelEntityOrder); renderView(); return; }
   if (target.matches("[data-save-employee-order]")) return saveEmployeeOrders();
   if (target.matches("[data-cancel-employee-order]")) { cancelEmployeeDrafts(); renderView(); return; }
+  if (target.matches("[data-toggle-department]")) {
+    const departmentId = target.dataset.toggleDepartment;
+    state.departmentExpanded[departmentId] = !state.departmentExpanded[departmentId];
+    saveDepartmentExpansion();
+    renderView();
+    return;
+  }
   if (target.matches("[data-new-employee]")) {
     const departmentId = target.dataset.departmentId;
     openEmployeeModal(departmentId ? { primaryDepartmentId: departmentId, departmentIds: [departmentId] } : {});
