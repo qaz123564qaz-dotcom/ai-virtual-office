@@ -84,12 +84,8 @@ export function renderView() {
       const addDepartmentButton = document.createElement("button");
       addDepartmentButton.type = "button";
       addDepartmentButton.className = "button ghost";
+      addDepartmentButton.dataset.newEntity = "department";
       addDepartmentButton.textContent = "＋ 新增部門";
-      addDepartmentButton.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        document.querySelector("#modal-root").innerHTML = entityForm("department");
-      });
       addEmployeeButton.before(addDepartmentButton);
     }
   }
