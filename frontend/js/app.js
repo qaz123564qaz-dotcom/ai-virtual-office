@@ -7,6 +7,7 @@ import { debounce, safeUrl } from "./utils.js";
 
 const app = document.querySelector("#app");
 const modalRoot = document.querySelector("#modal-root");
+const SESSION_CREDENTIAL_KEY = "ai-virtual-office.google-id-token";
 
 function closeModal() { modalRoot.innerHTML = ""; }
 function showError(form, error) { const target = form.querySelector("#form-error"); target.hidden = false; target.textContent = error.message || error; }
@@ -47,11 +48,13 @@ async function handleCredential(response) {
     state.statuses = data.statuses || [];
     state.tags = data.tags || [];
     state.user = data.user || state.user;
+    sessionStorage.setItem(SESSION_CREDENTIAL_KEY, state.credential);
     renderShell();
     renderView();
     showToast("登入成功，歡迎回到辦公室。");
   } catch (error) {
     state.credential = "";
+    sessionStorage.removeItem(SESSION_CREDENTIAL_KEY);
     renderLogin(error.message);
   }
 }
@@ -94,7 +97,7 @@ async function deleteEntity(entity, id) {
 document.addEventListener("click", async (event) => {
   const target = event.target.closest("button,a"); if (!target) return;
   if (target.dataset.view) { event.preventDefault(); state.view = target.dataset.view; renderView(); return; }
-  if (target.matches("[data-signout]")) { window.google?.accounts?.id?.disableAutoSelect(); state.credential = ""; state.user = null; renderLogin(); return; }
+  if (target.matches("[data-signout]")) { window.google?.accounts?.id?.disableAutoSelect(); state.credential = ""; state.user = null; sessionStorage.removeItem(SESSION_CREDENTIAL_KEY); renderLogin(); return; }
   if (target.matches("[data-new-employee]")) { modalRoot.innerHTML = employeeForm(); return; }
   if (target.matches("[data-edit-employee]")) { modalRoot.innerHTML = employeeForm(employeeById(target.dataset.editEmployee)); return; }
   if (target.matches("[data-delete-employee]")) return deleteEmployee(target.dataset.deleteEmployee);
@@ -102,7 +105,7 @@ document.addEventListener("click", async (event) => {
   if (target.matches("[data-open-admin]")) { const url = safeUrl(employeeById(target.dataset.openAdmin)?.adminUrl); if (url) window.open(url, "_blank", "noopener,noreferrer"); return; }
   if (target.matches("[data-expand]")) { const card = target.closest(".employee-card"); const detail = card.querySelector(".employee-detail"); const expanded = detail.hidden; detail.hidden = !expanded; target.setAttribute("aria-expanded", String(expanded)); return; }
   if (target.matches("[data-copy-prompt]")) { const text = employeeById(target.dataset.copyPrompt)?.prompt || ""; try { await navigator.clipboard.writeText(text); showToast("Prompt 已複製。") } catch { showToast("無法存取剪貼簿。", "error"); } return; }
-  if (target.matches("[data-new-entity]")) { modalRoot.innerHTML = entityForm(target.dataset.newEntity); return; }
+  if (target.matches("[data-new-entity]")) { event.preventDefault(); modalRoot.innerHTML = entityForm(target.dataset.newEntity); return; }
   if (target.matches("[data-edit-entity]")) { modalRoot.innerHTML = entityForm(target.dataset.editEntity, entityById(target.dataset.editEntity, target.dataset.id)); return; }
   if (target.matches("[data-delete-entity]")) return deleteEntity(target.dataset.deleteEntity, target.dataset.id);
   if (target.matches("[data-close-modal]")) { closeModal(); return; }
@@ -114,4 +117,5 @@ document.addEventListener("submit", (event) => { if (event.target.id === "employ
 document.addEventListener("input", debounce((event) => { if (event.target.id === "query") { state.filters.query = event.target.value; renderView(); } }, 180));
 document.addEventListener("change", (event) => { const map = { "platform-filter":"platform", "department-filter":"departmentId", "status-filter":"statusId", "tag-filter":"tagId" }; if (map[event.target.id]) { state.filters[map[event.target.id]] = event.target.value; renderView(); } });
 
-renderLogin();
+const savedCredential = sessionStorage.getItem(SESSION_CREDENTIAL_KEY);
+if (savedCredential) handleCredential({ credential: savedCredential }); else renderLogin();
