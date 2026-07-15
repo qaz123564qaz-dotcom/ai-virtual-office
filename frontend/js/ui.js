@@ -77,6 +77,17 @@ export function trashView() {
 export function renderView() {
   document.querySelectorAll("[data-view]").forEach((button) => button.classList.toggle("active", button.dataset.view === state.view));
   if (state.view === "settings") settingsView(); else if (state.view === "trash") trashView(); else officeView();
+  if (state.view === "office") {
+    const addEmployeeButton = document.querySelector("[data-new-employee]");
+    if (addEmployeeButton) {
+      const addDepartmentButton = document.createElement("button");
+      addDepartmentButton.type = "button";
+      addDepartmentButton.className = "button ghost";
+      addDepartmentButton.dataset.newEntity = "department";
+      addDepartmentButton.textContent = "＋ 新增部門";
+      addEmployeeButton.before(addDepartmentButton);
+    }
+  }
 }
 
 export function employeeForm(employee = {}) {
