@@ -1,7 +1,7 @@
-import { state } from "./state.js?v=20260715-4";
+import { state } from "./state.js?v=20260715-5";
 
 const ENTITY_COLLECTIONS = { department: "departments", status: "statuses", tag: "tags" };
-const LONG_PRESS_MS = 220;
+const LONG_PRESS_MS = 320;
 const MOVE_TOLERANCE = 10;
 let renderAfterChange = () => {};
 let pointerSession = null;
@@ -197,6 +197,7 @@ function cleanupPointer(commit) {
   if (!pointerSession) return;
   clearTimeout(pointerSession.timer);
   const { handle, item, list, baseline, active } = pointerSession;
+  handle.classList.remove("is-pressing");
   if (active) {
     item.classList.remove("is-dragging");
     list.classList.remove("sort-list-active");
@@ -209,6 +210,7 @@ function cleanupPointer(commit) {
 function activatePointer() {
   if (!pointerSession) return;
   pointerSession.active = true;
+  pointerSession.handle.classList.remove("is-pressing");
   pointerSession.item.classList.add("is-dragging");
   pointerSession.list.classList.add("sort-list-active");
   pointerSession.handle.setAttribute("aria-grabbed", "true");
@@ -216,10 +218,11 @@ function activatePointer() {
 
 function onPointerDown(event) {
   const handle = event.target.closest("[data-drag-handle]");
-  if (!handle || handle.disabled || event.button !== 0) return;
+  if (!handle || handle.disabled || event.button !== 0 || event.isPrimary === false) return;
   const item = handle.closest("[data-sort-item]");
   const list = item?.parentElement;
   if (!list?.matches("[data-sort-list]")) return;
+  event.preventDefault();
   pointerSession = {
     pointerId: event.pointerId,
     handle,
@@ -231,6 +234,7 @@ function onPointerDown(event) {
     active: false,
     timer: setTimeout(activatePointer, LONG_PRESS_MS),
   };
+  handle.classList.add("is-pressing");
   handle.setPointerCapture?.(event.pointerId);
 }
 

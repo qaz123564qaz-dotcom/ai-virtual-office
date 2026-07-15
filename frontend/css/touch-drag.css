@@ -1,0 +1,25 @@
+/* A 44px handle gives touch users a reliable target without turning cards into drag surfaces. */
+.drag-handle {
+  width: 44px;
+  height: 44px;
+  border-radius: 9px;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+  font-size: 1.2rem;
+}
+
+.drag-handle:active,
+.drag-handle.is-pressing,
+.drag-handle[aria-grabbed="true"] {
+  cursor: grabbing;
+  color: var(--brand);
+  background: #e0e7ff;
+  transform: scale(.96);
+}
+
+.employee-card > .drag-handle {
+  left: 3px;
+  top: 7px;
+}
