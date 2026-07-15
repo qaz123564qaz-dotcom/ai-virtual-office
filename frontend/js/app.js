@@ -2,7 +2,7 @@ import { CONFIG } from "./config.js?v=20260715-3";
 import { api } from "./api.js?v=20260715-4";
 import { resetData, state } from "./state.js?v=20260715-4";
 import { employeeById, entityById, readEmployeeForm, readEntityForm } from "./forms.js?v=20260715-4";
-import { confirmDialog, employeeForm, entityForm, loginScreen, renderShell, renderView as renderBaseView, showToast } from "./ui.js?v=20260715-4";
+import { confirmDialog, employeeForm, entityForm, loginScreen, renderShell, renderView as renderBaseView, showToast } from "./ui.js?v=20260715-5";
 import { cancelEmployeeDrafts, cancelEntityDraft, clearAllReorderDrafts, enhanceReorderUI, hasAnyReorderDrafts, hasEmployeeDrafts, initializeReorderController } from "./reorder.js?v=20260715-4";
 import { debounce, safeUrl } from "./utils.js";
 
@@ -36,7 +36,7 @@ function confirmDiscardReorder() {
 
 initializeReorderController(renderView);
 
-function openEmployeeModal(employee) {
+function openEmployeeModal(employee = {}) {
   modalRoot.innerHTML = employeeForm(employee);
   const form = modalRoot.querySelector("#employee-form");
   const saveButton = form.querySelector('button[type="submit"]');
@@ -164,7 +164,11 @@ document.addEventListener("click", async (event) => {
   if (target.matches("[data-cancel-entity-order]")) { cancelEntityDraft(target.dataset.cancelEntityOrder); renderView(); return; }
   if (target.matches("[data-save-employee-order]")) return saveEmployeeOrders();
   if (target.matches("[data-cancel-employee-order]")) { cancelEmployeeDrafts(); renderView(); return; }
-  if (target.matches("[data-new-employee]")) { openEmployeeModal(); return; }
+  if (target.matches("[data-new-employee]")) {
+    const departmentId = target.dataset.departmentId;
+    openEmployeeModal(departmentId ? { primaryDepartmentId: departmentId, departmentIds: [departmentId] } : {});
+    return;
+  }
   if (target.matches("[data-edit-employee]")) { openEmployeeModal(employeeById(target.dataset.editEmployee)); return; }
   if (target.matches("[data-delete-employee]")) return deleteEmployee(target.dataset.deleteEmployee);
   if (target.matches("[data-open-ai]")) return openAi(target.dataset.openAi);

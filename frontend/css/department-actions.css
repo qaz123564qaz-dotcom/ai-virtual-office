@@ -1,0 +1,18 @@
+.department-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.compact-button {
+  padding: 6px 9px;
+  font-size: .78rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 680px) {
+  .department-heading { align-items: flex-start; flex-wrap: wrap; }
+  .department-actions { width: 100%; justify-content: space-between; }
+}
