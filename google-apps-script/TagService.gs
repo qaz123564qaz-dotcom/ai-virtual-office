@@ -1,3 +1,2 @@
-function saveTag_(data) { return saveEntity_('tag',data); }
-function deleteTag_(id) { return deleteEntity_('tag',id); }
-
+function saveTag_(data, user) { return saveEntity_('tag', data, user); }
+function deleteTag_(id, user) { return deleteEntity_('tag', id, user); }

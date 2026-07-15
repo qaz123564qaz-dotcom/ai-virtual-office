@@ -1,4 +1,4 @@
-import { state } from "./state.js";
+import { state } from "./state.js?v=20260715-4";
 import { safeUrl } from "./utils.js";
 
 export function readEmployeeForm(form) {

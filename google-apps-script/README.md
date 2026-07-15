@@ -1,29 +1,47 @@
 # Google Apps Script 後端
 
-## 檔案與工作表
-
-把此資料夾的 `.gs` 檔逐一新增到同一個獨立 Apps Script 專案，並在 Project Settings 勾選顯示 `appsscript.json` 後覆寫 manifest。首次執行 `initializeForOwner()` 會建立：`AI_Employees`、`Departments`、`Statuses`、`Tags`、`Settings`。
+這個版本允許任何 Google 帳號登入，但每筆 AI 員工、部門、狀態與標籤資料都會依 Google ID Token 的 `sub` 分隔；使用者只能讀寫自己的資料。
 
 ## Script Properties
 
+在 Apps Script 的「專案設定」→「指令碼屬性」設定：
+
 | Key | 值 |
 | --- | --- |
-| `SPREADSHEET_ID` | 空白 Google Sheets 的 ID |
-| `GOOGLE_CLIENT_ID` | Google OAuth Web Client ID |
-| `ALLOWED_EMAILS` | 允許登入的 Gmail；逗號分隔 |
+| `SPREADSHEET_ID` | Google Sheets 網址中 `/d/` 與 `/edit` 之間的 ID |
+| `GOOGLE_CLIENT_ID` | Google Cloud 建立的 OAuth 網頁用戶端 ID |
+| `LEGACY_OWNER_EMAIL`（可選） | 舊版單一帳號資料的原擁有者 Gmail；例如 `qaz123564qaz@gmail.com` |
 
-## 發布與測試
+不再需要 `ALLOWED_EMAILS`；可刪除它或保留不使用。
 
-1. 執行 `initializeForOwner`，接受 Sheets 和外部請求權限。
-2. Deploy 為 Web app，選 **Execute as me** 與 **Anyone**，取得 `/exec` URL。
-3. GET `.../exec?action=health` 可檢查服務存活；它不會讀取資料。
-4. 前端 `POST` 格式為 `{ action, credential, data }`。所有回應皆是 `{ success, data, message, error }`。
+## 升級既有資料
 
-## 疑難排解
+1. 先把所有 `.gs` 檔案更新成此資料夾的版本，再按「儲存」。
+2. 在指令碼屬性新增 `LEGACY_OWNER_EMAIL`，填入原本使用此辦公室的 Gmail。
+3. 重新部署 Web app（「部署」→「管理部署」→編輯→新增版本→部署）。
+4. 原擁有者首次登入時，既有未歸屬的示範/個人資料會自動標記為該帳號所有；其他帳號永遠看不到它。
+5. 其他 Google 帳號首次登入時，系統會替各自建立獨立的示範資料。
 
-- `UNAUTHORIZED`：重新登入，並確認 Client ID 與前端完全一致。
-- `FORBIDDEN`：把實際登入 Gmail 加到 `ALLOWED_EMAILS`，以小寫存放後重新嘗試。
-- `SPREADSHEET_ERROR`：確認 Spreadsheet ID 和 Apps Script 擁有者有試算表權限。
-- API 回傳 HTML：請使用部署後的 `/exec` URL，不能用 `/dev` URL。
-- Google 登入顯示 origin 錯誤：將精確的 GitHub Pages scheme/hostname 加入 OAuth Client 的 Authorized JavaScript origins。
+`LEGACY_OWNER_EMAIL` 是一次性安全遷移開關。資料已移交後可以刪除它；不刪也不會讓其他帳號讀取已移交的資料。
 
+## OAuth 設定
+
+Google Cloud OAuth 同意畫面應選擇 **External**，並在 OAuth 網頁用戶端的「已授權 JavaScript 來源」加入 GitHub Pages 的完整 origin，例如 `https://qaz123564qaz-dotcom.github.io`。前端僅使用 `openid`、`email`、`profile` 身分資訊；請勿要求 Google Sheets 或 Drive 權限。
+
+## 部署與檢查
+
+1. 以 **Execute as me** 部署 Web app；存取權設為 **Anyone**。
+2. `GET /exec?action=health` 應回傳 `success: true`。
+3. 所有應用程式 API 請求必須用 POST，內容為 `{ action, credential, data }`。
+
+### 批次排序 API
+
+- `department.reorder`、`status.reorder`、`tag.reorder`：`data` 為 `{ orderedIds: string[] }`，必須完整包含目前使用者在該區的所有可排序項目。
+- `employee.reorder`：`data` 為 `{ departments: [{ departmentId, orderedIds: string[] }] }`；每組必須完整包含該主要部門的所有未刪除員工。
+- 排序會在鎖定範圍內驗證擁有者、重複 ID 與主要部門，再以單次欄位批次寫入將 `sortOrder` 正規化為 `1..n`。
+
+常見錯誤：
+
+- `UNAUTHORIZED`：確認前端的 Client ID 與 `GOOGLE_CLIENT_ID` 完全相同，並重新登入取得新 ID Token。
+- `SHEET_SCHEMA_ERROR`：工作表第一列被手動改動；請依專案欄位順序復原後重新執行。
+- API 回傳舊行為：重新部署時必須選「新增版本」，而不是只按儲存。

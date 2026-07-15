@@ -37,6 +37,17 @@ function ensureSheet_(book, name, headers) {
 function records_(name) { if (Object.prototype.hasOwnProperty.call(recordsCache_, name)) return recordsCache_[name]; const sheet = getSheet_(name), headers = SHEETS_[name], last = sheet.getLastRow(); if (last < 2) return recordsCache_[name] = []; return recordsCache_[name] = sheet.getRange(2, 1, last - 1, headers.length).getValues().map((row) => rowToRecord_(headers, row)); }
 function rowToRecord_(headers, row) { const record = {}; headers.forEach((header, index) => { let value = row[index]; if (['departmentIds','tagIds'].includes(header)) value = parseJson_(value, []); if (['isDeleted','isActive'].includes(header)) value = value === true || value === 'true'; if (header === 'usageCount') value = Number(value || 0); record[header] = value; }); return record; }
 function saveRecord_(name, record) { const sheet = getSheet_(name), headers = SHEETS_[name], values = headers.map((header) => { const value = record[header]; return ['departmentIds','tagIds'].includes(header) ? stringifyJson_(value) : value === undefined || value === null ? '' : value; }); const rows = records_(name), index = rows.findIndex((item) => item.id === record.id); if (index >= 0) { sheet.getRange(index + 2, 1, 1, headers.length).setValues([values]); rows[index] = Object.assign({}, record); } else { sheet.appendRow(values); rows.push(Object.assign({}, record)); } return record; }
+function writeSortOrders_(name, sortOrderById) {
+  const rows = records_(name);
+  if (!rows.length) return;
+  const column = SHEETS_[name].indexOf('sortOrder');
+  if (column < 0) throw new AppError_('SHEET_SCHEMA_ERROR', `${name} 缺少 sortOrder 欄位。`);
+  const values = rows.map((record) => {
+    if (Object.prototype.hasOwnProperty.call(sortOrderById, record.id)) record.sortOrder = Number(sortOrderById[record.id]);
+    return [Number(record.sortOrder || 0)];
+  });
+  getSheet_(name).getRange(2, column + 1, rows.length, 1).setValues(values);
+}
 function removeRecord_(name, id) { const rows = records_(name), index = rows.findIndex((item) => item.id === id); if (index < 0) throw new AppError_('NOT_FOUND', '找不到資料。'); getSheet_(name).deleteRow(index + 2); rows.splice(index, 1); }
 function withLock_(fn) { const lock = LockService.getScriptLock(); try { lock.waitLock(20000); return fn(); } catch (error) { if (String(error).includes('lock')) throw new AppError_('LOCK_TIMEOUT', '系統忙碌中，請稍後再試。'); throw error; } finally { if (lock.hasLock()) lock.releaseLock(); } }
 function initSpreadsheet_() { const book = spreadsheet_(); Object.keys(SHEETS_).forEach((name) => ensureSheet_(book, name, SHEETS_[name])); PropertiesService.getScriptProperties().setProperty('SHEET_SCHEMA_MARKER', `${book.getId()}:${SHEET_SCHEMA_VERSION_}`); return { spreadsheetId: book.getId(), initialized: true }; }

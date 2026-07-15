@@ -1,3 +1,2 @@
-function saveStatus_(data) { return saveEntity_('status',data); }
-function deleteStatus_(id) { return deleteEntity_('status',id); }
-
+function saveStatus_(data, user) { return saveEntity_('status', data, user); }
+function deleteStatus_(id, user) { return deleteEntity_('status', id, user); }

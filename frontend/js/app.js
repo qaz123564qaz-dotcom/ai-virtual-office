@@ -1,8 +1,9 @@
 import { CONFIG } from "./config.js?v=20260715-3";
-import { api } from "./api.js?v=20260715-3";
-import { resetData, state } from "./state.js";
-import { employeeById, entityById, readEmployeeForm, readEntityForm } from "./forms.js?v=20260715-1";
-import { confirmDialog, employeeForm, entityForm, loginScreen, renderShell, renderView, showToast } from "./ui.js?v=20260715-1";
+import { api } from "./api.js?v=20260715-4";
+import { resetData, state } from "./state.js?v=20260715-4";
+import { employeeById, entityById, readEmployeeForm, readEntityForm } from "./forms.js?v=20260715-4";
+import { confirmDialog, employeeForm, entityForm, loginScreen, renderShell, renderView as renderBaseView, showToast } from "./ui.js?v=20260715-4";
+import { cancelEmployeeDrafts, cancelEntityDraft, clearAllReorderDrafts, enhanceReorderUI, hasAnyReorderDrafts, hasEmployeeDrafts, initializeReorderController } from "./reorder.js?v=20260715-4";
 import { debounce, safeUrl } from "./utils.js";
 
 const app = document.querySelector("#app");
@@ -20,6 +21,20 @@ function upsertRecord(collection, record) {
 function entityCollection(entity) {
   return state[entity === "status" ? "statuses" : `${entity}s`];
 }
+
+function renderView() {
+  renderBaseView();
+  enhanceReorderUI();
+}
+
+function confirmDiscardReorder() {
+  if (!hasAnyReorderDrafts()) return true;
+  if (!window.confirm("目前有尚未儲存的排序。確定要放棄這些變更嗎？")) return false;
+  clearAllReorderDrafts();
+  return true;
+}
+
+initializeReorderController(renderView);
 
 function openEmployeeModal(employee) {
   modalRoot.innerHTML = employeeForm(employee);
@@ -63,6 +78,7 @@ async function handleCredential(response) {
     state.statuses = data.statuses || [];
     state.tags = data.tags || [];
     state.user = data.user || state.user;
+    clearAllReorderDrafts();
     sessionStorage.setItem(SESSION_CREDENTIAL_KEY, state.credential);
     renderShell();
     renderView();
@@ -112,10 +128,42 @@ async function deleteEntity(entity, id) {
   try { const result = await api.deleteEntity(state.credential, entity, id); upsertRecord(entityCollection(entity), result); renderView(); showToast("已刪除。"); } catch (error) { showToast(error.message, "error"); }
 }
 
+async function saveEntityOrder(entity) {
+  const orderedIds = state.reorder.entities[entity];
+  if (!orderedIds) return;
+  try {
+    const result = await api.reorderEntity(state.credential, entity, orderedIds);
+    (result.items || []).forEach((item) => upsertRecord(entityCollection(entity), item));
+    cancelEntityDraft(entity);
+    renderView();
+    showToast("排序已儲存。");
+  } catch (error) {
+    showToast(`排序儲存失敗：${error.message}`, "error");
+  }
+}
+
+async function saveEmployeeOrders() {
+  const departments = Object.entries(state.reorder.employees).map(([departmentId, orderedIds]) => ({ departmentId, orderedIds }));
+  if (!departments.length) return;
+  try {
+    const result = await api.reorderEmployees(state.credential, departments);
+    (result.employees || []).forEach((employee) => upsertRecord(state.employees, employee));
+    cancelEmployeeDrafts();
+    renderView();
+    showToast("員工排序已儲存。");
+  } catch (error) {
+    showToast(`員工排序儲存失敗：${error.message}`, "error");
+  }
+}
+
 document.addEventListener("click", async (event) => {
   const target = event.target.closest("button,a"); if (!target) return;
-  if (target.dataset.view) { event.preventDefault(); state.view = target.dataset.view; renderView(); return; }
-  if (target.matches("[data-signout]")) { window.google?.accounts?.id?.disableAutoSelect(); state.credential = ""; state.user = null; sessionStorage.removeItem(SESSION_CREDENTIAL_KEY); renderLogin(); return; }
+  if (target.dataset.view) { event.preventDefault(); if (target.dataset.view !== state.view && !confirmDiscardReorder()) return; state.view = target.dataset.view; renderView(); return; }
+  if (target.matches("[data-signout]")) { if (!confirmDiscardReorder()) return; window.google?.accounts?.id?.disableAutoSelect(); state.credential = ""; state.user = null; sessionStorage.removeItem(SESSION_CREDENTIAL_KEY); renderLogin(); return; }
+  if (target.matches("[data-save-entity-order]")) return saveEntityOrder(target.dataset.saveEntityOrder);
+  if (target.matches("[data-cancel-entity-order]")) { cancelEntityDraft(target.dataset.cancelEntityOrder); renderView(); return; }
+  if (target.matches("[data-save-employee-order]")) return saveEmployeeOrders();
+  if (target.matches("[data-cancel-employee-order]")) { cancelEmployeeDrafts(); renderView(); return; }
   if (target.matches("[data-new-employee]")) { openEmployeeModal(); return; }
   if (target.matches("[data-edit-employee]")) { openEmployeeModal(employeeById(target.dataset.editEmployee)); return; }
   if (target.matches("[data-delete-employee]")) return deleteEmployee(target.dataset.deleteEmployee);
@@ -147,8 +195,25 @@ document.addEventListener("submit", (event) => {
   }
 }, true);
 
-document.addEventListener("input", debounce((event) => { if (event.target.id === "query") { state.filters.query = event.target.value; renderView(); } }, 180));
-document.addEventListener("change", (event) => { const map = { "platform-filter":"platform", "department-filter":"departmentId", "status-filter":"statusId", "tag-filter":"tagId" }; if (map[event.target.id]) { state.filters[map[event.target.id]] = event.target.value; renderView(); } });
+document.addEventListener("input", debounce((event) => {
+  if (event.target.id !== "query") return;
+  if (hasEmployeeDrafts()) { showToast("請先儲存或取消員工排序，再使用搜尋。", "error"); renderView(); return; }
+  state.filters.query = event.target.value;
+  renderView();
+}, 180));
+document.addEventListener("change", (event) => {
+  const map = { "platform-filter":"platform", "department-filter":"departmentId", "status-filter":"statusId", "tag-filter":"tagId" };
+  if (!map[event.target.id]) return;
+  if (hasEmployeeDrafts()) { showToast("請先儲存或取消員工排序，再變更篩選。", "error"); renderView(); return; }
+  state.filters[map[event.target.id]] = event.target.value;
+  renderView();
+});
+
+window.addEventListener("beforeunload", (event) => {
+  if (!hasAnyReorderDrafts()) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
 
 const savedCredential = sessionStorage.getItem(SESSION_CREDENTIAL_KEY);
 if (savedCredential) handleCredential({ credential: savedCredential }); else renderLogin();

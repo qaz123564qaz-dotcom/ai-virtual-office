@@ -28,12 +28,16 @@ function doPost(e) {
       case 'employee.restore': result = restoreEmployee_(required_(data.id, 'id'), user); break;
       case 'employee.purge': result = purgeEmployee_(required_(data.id, 'id'), user); break;
       case 'employee.recordUse': result = recordUse_(required_(data.id, 'id'), user); break;
+      case 'employee.reorder': result = reorderEmployees_(data.departments, user); break;
       case 'department.save': result = saveDepartment_(data, user); break;
       case 'department.delete': result = deleteDepartment_(required_(data.id, 'id'), user); break;
+      case 'department.reorder': result = reorderEntities_('department', data.orderedIds, user); break;
       case 'status.save': result = saveStatus_(data, user); break;
       case 'status.delete': result = deleteStatus_(required_(data.id, 'id'), user); break;
+      case 'status.reorder': result = reorderEntities_('status', data.orderedIds, user); break;
       case 'tag.save': result = saveTag_(data, user); break;
       case 'tag.delete': result = deleteTag_(required_(data.id, 'id'), user); break;
+      case 'tag.reorder': result = reorderEntities_('tag', data.orderedIds, user); break;
       case 'system.initialize': initSpreadsheet_(); ensureUserWorkspace_(user); result = workspaceForUser_(user); break;
       default: throw new AppError_('UNKNOWN_ACTION', `未知 action：${action}`);
     }

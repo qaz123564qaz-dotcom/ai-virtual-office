@@ -8,6 +8,7 @@ export const state = {
   tags: [],
   filters: { query: "", platform: "", departmentId: "", statusId: "", tagId: "" },
   view: "office",
+  reorder: { entities: {}, employees: {} },
 };
 
 export function resetData() {
@@ -15,5 +16,5 @@ export function resetData() {
   state.departments = [];
   state.statuses = [];
   state.tags = [];
+  state.reorder = { entities: {}, employees: {} };
 }
-

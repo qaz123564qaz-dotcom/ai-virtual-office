@@ -25,4 +25,6 @@ export const api = {
   recordUse: (credential, id) => request("employee.recordUse", { credential, data: { id } }),
   saveEntity: (credential, entity, data) => request(`${entity}.save`, { credential, data }),
   deleteEntity: (credential, entity, id) => request(`${entity}.delete`, { credential, data: { id } }),
+  reorderEntity: (credential, entity, orderedIds) => request(`${entity}.reorder`, { credential, data: { orderedIds } }),
+  reorderEmployees: (credential, departments) => request("employee.reorder", { credential, data: { departments } }),
 };
