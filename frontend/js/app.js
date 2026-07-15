@@ -1,8 +1,8 @@
 import { CONFIG } from "./config.js";
 import { api } from "./api.js";
 import { resetData, state } from "./state.js";
-import { employeeById, entityById, readEmployeeForm, readEntityForm } from "./forms.js";
-import { confirmDialog, employeeForm, entityForm, loginScreen, renderShell, renderView, showToast } from "./ui.js";
+import { employeeById, entityById, readEmployeeForm, readEntityForm } from "./forms.js?v=20260715-1";
+import { confirmDialog, employeeForm, entityForm, loginScreen, renderShell, renderView, showToast } from "./ui.js?v=20260715-1";
 import { debounce, safeUrl } from "./utils.js";
 
 const app = document.querySelector("#app");
