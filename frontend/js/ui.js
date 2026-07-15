@@ -38,7 +38,7 @@ export function renderShell() {
 
 function filterBar() {
   const f = state.filters;
-  return `<section class="filters" aria-label="篩選 AI 員工"><label class="search"><span>⌕</span><input id="query" type="search" placeholder="搜尋名稱、職稱、用途、標籤…" value="${escapeHtml(f.query)}" /></label><select id="platform-filter"><option value="">全部平台</option><option value="GPT" ${f.platform === "GPT" ? "selected" : ""}>ChatGPT</option><option value="Gem" ${f.platform === "Gem" ? "selected" : ""}>Gemini Gem</option></select><select id="department-filter">${options(state.departments, f.departmentId, "全部部門")}</select><select id="status-filter">${options(state.statuses, f.statusId, "全部狀態")}</select><select id="tag-filter">${options(state.tags, f.tagId, "全部標籤")}</select><button class="button primary" data-new-employee>＋ 新增 AI 員工</button></section>`;
+  return `<section class="filters" aria-label="篩選 AI 員工"><label class="search"><span>⌕</span><input id="query" type="search" placeholder="搜尋名稱、職稱、用途、標籤…" value="${escapeHtml(f.query)}" /></label><select id="platform-filter"><option value="">全部平台</option><option value="GPT" ${f.platform === "GPT" ? "selected" : ""}>ChatGPT</option><option value="Gem" ${f.platform === "Gem" ? "selected" : ""}>Gemini Gem</option></select><select id="department-filter">${options(state.departments, f.departmentId, "全部部門")}</select><select id="status-filter">${options(state.statuses, f.statusId, "全部狀態")}</select><select id="tag-filter">${options(state.tags, f.tagId, "全部標籤")}</select><button class="button ghost" data-new-entity="department">＋ 新增部門</button></section>`;
 }
 
 function matches(employee) {
@@ -78,17 +78,6 @@ export function trashView() {
 export function renderView() {
   document.querySelectorAll("[data-view]").forEach((button) => button.classList.toggle("active", button.dataset.view === state.view));
   if (state.view === "settings") settingsView(); else if (state.view === "trash") trashView(); else officeView();
-  if (state.view === "office") {
-    const addEmployeeButton = document.querySelector("[data-new-employee]");
-    if (addEmployeeButton) {
-      const addDepartmentButton = document.createElement("button");
-      addDepartmentButton.type = "button";
-      addDepartmentButton.className = "button ghost";
-      addDepartmentButton.dataset.newEntity = "department";
-      addDepartmentButton.textContent = "＋ 新增部門";
-      addEmployeeButton.before(addDepartmentButton);
-    }
-  }
 }
 
 export function employeeForm(employee = {}) {
