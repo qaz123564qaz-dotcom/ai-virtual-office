@@ -1,12 +1,38 @@
 function validateCredential_(credential) {
   required_(credential, 'Google ID Token');
-  const props = PropertiesService.getScriptProperties();
-  const clientId = props.getProperty('GOOGLE_CLIENT_ID');
-  const allowedEmails = (props.getProperty('ALLOWED_EMAILS') || '').split(',').map((email) => email.trim().toLowerCase()).filter(Boolean);
-  if (!clientId || !allowedEmails.length) throw new AppError_('CONFIG_ERROR', '尚未設定 GOOGLE_CLIENT_ID 或 ALLOWED_EMAILS。');
+  const clientId = PropertiesService.getScriptProperties().getProperty('GOOGLE_CLIENT_ID');
+  if (!clientId) throw new AppError_('CONFIG_ERROR', '尚未設定 GOOGLE_CLIENT_ID。');
+
+  const authCache = CacheService.getScriptCache();
+  const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, `${clientId}|${credential}`);
+  const cacheKey = `google-auth:${Utilities.base64EncodeWebSafe(digest).replace(/=+$/, '')}`;
+  const cachedUser = authCache.get(cacheKey);
+  if (cachedUser) {
+    try { return JSON.parse(cachedUser); } catch (_) { authCache.remove(cacheKey); }
+  }
+
   let payload;
-  try { const response=UrlFetchApp.fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`, { muteHttpExceptions: true }); if (response.getResponseCode() !== 200) throw new Error(response.getContentText()); payload=JSON.parse(response.getContentText()); } catch (_) { throw new AppError_('UNAUTHORIZED', 'Google 登入憑證無效或已過期，請重新登入。'); }
-  if (payload.aud !== clientId || !['accounts.google.com','https://accounts.google.com'].includes(payload.iss) || Number(payload.exp) * 1000 <= Date.now() || !(payload.email_verified === true || payload.email_verified === 'true')) throw new AppError_('UNAUTHORIZED','Google 登入憑證驗證失敗。');
-  const email=String(payload.email || '').toLowerCase(); if (!allowedEmails.includes(email)) throw new AppError_('FORBIDDEN','此 Google 帳號未獲授權使用本辦公室。');
-  return { id: payload.sub, email: email, name: payload.name || email, picture: payload.picture || '' };
+  try {
+    const response = UrlFetchApp.fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`, { muteHttpExceptions: true });
+    if (response.getResponseCode() !== 200) throw new Error(response.getContentText());
+    payload = JSON.parse(response.getContentText());
+  } catch (_) {
+    throw new AppError_('UNAUTHORIZED', 'Google 登入憑證無效或已過期，請重新登入。');
+  }
+
+  const validIssuer = ['accounts.google.com', 'https://accounts.google.com'].includes(payload.iss);
+  const emailVerified = payload.email_verified === true || payload.email_verified === 'true';
+  if (payload.aud !== clientId || !validIssuer || Number(payload.exp) * 1000 <= Date.now() || !emailVerified || !payload.sub || !payload.email) {
+    throw new AppError_('UNAUTHORIZED', 'Google 登入憑證驗證失敗。');
+  }
+
+  const user = {
+    id: String(payload.sub),
+    email: String(payload.email).toLowerCase(),
+    name: String(payload.name || payload.email),
+    picture: String(payload.picture || '')
+  };
+  const secondsUntilExpiry = Number(payload.exp) - Math.floor(Date.now() / 1000) - 30;
+  if (secondsUntilExpiry > 0) authCache.put(cacheKey, JSON.stringify(user), Math.min(300, secondsUntilExpiry));
+  return user;
 }

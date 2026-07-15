@@ -12,6 +12,15 @@ const SESSION_CREDENTIAL_KEY = "ai-virtual-office.google-id-token";
 function closeModal() { modalRoot.innerHTML = ""; }
 function showError(form, error) { const target = form.querySelector("#form-error"); target.hidden = false; target.textContent = error.message || error; }
 
+function upsertRecord(collection, record) {
+  const index = collection.findIndex((item) => item.id === record.id);
+  if (index >= 0) collection[index] = record; else collection.push(record);
+}
+
+function entityCollection(entity) {
+  return state[entity === "status" ? "statuses" : `${entity}s`];
+}
+
 function openEmployeeModal(employee) {
   modalRoot.innerHTML = employeeForm(employee);
   const form = modalRoot.querySelector("#employee-form");
@@ -28,18 +37,6 @@ function openEntityModal(entity, item) {
   saveButton.type = "button";
   saveButton.addEventListener("click", () => saveEntity(form));
   form.addEventListener("submit", (event) => event.preventDefault());
-}
-
-async function refresh() {
-  state.loading = true;
-  const data = await api.bootstrap(state.credential);
-  state.employees = data.employees || [];
-  state.departments = data.departments || [];
-  state.statuses = data.statuses || [];
-  state.tags = data.tags || [];
-  state.user = data.user || state.user;
-  state.loading = false;
-  renderView();
 }
 
 function renderLogin(error = "") {
@@ -82,7 +79,8 @@ async function saveEmployee(form) {
   try {
     const data = readEmployeeForm(form);
     const result = data.id ? await api.updateEmployee(state.credential, data) : await api.createEmployee(state.credential, data);
-    await refresh(); closeModal(); showToast(`${result.name} 已${data.id ? "更新" : "建立"}。`);
+    upsertRecord(state.employees, result);
+    closeModal(); renderView(); showToast(`${result.name} 已${data.id ? "更新" : "建立"}。`);
   } catch (error) { showError(form, error); }
 }
 
@@ -90,26 +88,28 @@ async function saveEntity(form) {
   try {
     const entity = form.dataset.entity;
     const result = await api.saveEntity(state.credential, entity, readEntityForm(form));
-    await refresh(); closeModal(); showToast(`${result.name} 已儲存。`);
+    upsertRecord(entityCollection(entity), result);
+    closeModal(); renderView(); showToast(`${result.name} 已儲存。`);
   } catch (error) { showError(form, error); }
 }
 
 async function deleteEmployee(id) {
   const employee = employeeById(id); if (!employee) return;
   if (!await confirmDialog({ title: "移至回收桶？", message: `「${employee.name}」可稍後從回收桶還原。`, confirmText: "移至回收桶", danger: true })) return;
-  try { await api.deleteEmployee(state.credential, id); await refresh(); showToast("已移至回收桶。"); } catch (error) { showToast(error.message, "error"); }
+  try { const result = await api.deleteEmployee(state.credential, id); upsertRecord(state.employees, result); renderView(); showToast("已移至回收桶。"); } catch (error) { showToast(error.message, "error"); }
 }
 
 async function openAi(id) {
   const employee = employeeById(id); const url = safeUrl(employee?.usageUrl);
   if (!url) return showToast("此 AI 尚未設定可用的使用連結。", "error");
-  try { await api.recordUse(state.credential, id); window.open(url, "_blank", "noopener,noreferrer"); await refresh(); } catch (error) { showToast(`無法記錄使用狀態：${error.message}`, "error"); }
+  window.open(url, "_blank", "noopener,noreferrer");
+  try { const result = await api.recordUse(state.credential, id); upsertRecord(state.employees, result); renderView(); } catch (error) { showToast(`無法記錄使用狀態：${error.message}`, "error"); }
 }
 
 async function deleteEntity(entity, id) {
   const item = entityById(entity, id); if (!item) return;
   if (!await confirmDialog({ title: `刪除${entity === "department" ? "部門" : entity === "status" ? "狀態" : "標籤"}？`, message: `「${item.name}」若仍被 AI 員工使用，系統會拒絕刪除。`, confirmText: "刪除", danger: true })) return;
-  try { await api.deleteEntity(state.credential, entity, id); await refresh(); showToast("已刪除。"); } catch (error) { showToast(error.message, "error"); }
+  try { const result = await api.deleteEntity(state.credential, entity, id); upsertRecord(entityCollection(entity), result); renderView(); showToast("已刪除。"); } catch (error) { showToast(error.message, "error"); }
 }
 
 document.addEventListener("click", async (event) => {
@@ -127,8 +127,8 @@ document.addEventListener("click", async (event) => {
   if (target.matches("[data-edit-entity]")) { openEntityModal(target.dataset.editEntity, entityById(target.dataset.editEntity, target.dataset.id)); return; }
   if (target.matches("[data-delete-entity]")) return deleteEntity(target.dataset.deleteEntity, target.dataset.id);
   if (target.matches("[data-close-modal]")) { closeModal(); return; }
-  if (target.matches("[data-restore]")) { try { await api.restoreEmployee(state.credential, target.dataset.restore); await refresh(); showToast("已還原 AI 員工。") } catch (e) { showToast(e.message, "error"); } return; }
-  if (target.matches("[data-purge]")) { if (!await confirmDialog({ title:"永久刪除？", message:"這項操作無法復原。", confirmText:"永久刪除", danger:true })) return; try { await api.purgeEmployee(state.credential, target.dataset.purge); await refresh(); showToast("已永久刪除。") } catch (e) { showToast(e.message,"error"); } }
+  if (target.matches("[data-restore]")) { try { const result = await api.restoreEmployee(state.credential, target.dataset.restore); upsertRecord(state.employees, result); renderView(); showToast("已還原 AI 員工。") } catch (e) { showToast(e.message, "error"); } return; }
+  if (target.matches("[data-purge]")) { if (!await confirmDialog({ title:"永久刪除？", message:"這項操作無法復原。", confirmText:"永久刪除", danger:true })) return; try { await api.purgeEmployee(state.credential, target.dataset.purge); state.employees = state.employees.filter((employee) => employee.id !== target.dataset.purge); renderView(); showToast("已永久刪除。") } catch (e) { showToast(e.message,"error"); } }
 });
 
 document.addEventListener("submit", (event) => { if (event.target.id === "employee-form") { event.preventDefault(); saveEmployee(event.target); } if (event.target.id === "entity-form") { event.preventDefault(); saveEntity(event.target); } });
