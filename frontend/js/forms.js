@@ -23,5 +23,7 @@ export function readEntityForm(form) {
 }
 
 export function employeeById(id) { return state.employees.find((employee) => employee.id === id); }
-export function entityById(entity, id) { return state[`${entity}s`].find((item) => item.id === id); }
-
+export function entityById(entity, id) {
+  const stateKey = entity === "status" ? "statuses" : `${entity}s`;
+  return (state[stateKey] || []).find((item) => item.id === id);
+}

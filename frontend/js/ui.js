@@ -61,7 +61,8 @@ export function officeView() {
 }
 
 function entityPanel(entity, title, fields) {
-  const items = state[`${entity}s`];
+  const stateKey = entity === "status" ? "statuses" : `${entity}s`;
+  const items = Array.isArray(state[stateKey]) ? state[stateKey] : [];
   return `<section class="settings-panel"><div class="panel-heading"><h2>${title}</h2><button class="button ghost" data-new-entity="${entity}">＋ 新增</button></div><div class="entity-list">${items.filter((item) => !item.isDeleted).sort((a,b) => a.sortOrder - b.sortOrder).map((item) => `<div class="entity-row"><span class="color-dot" style="background:${escapeHtml(item.color || "#64748b")}"></span><strong>${escapeHtml(item.name)}</strong><span class="muted">${fields(item)}</span><button class="text-button" data-edit-entity="${entity}" data-id="${item.id}">編輯</button><button class="text-button danger-text" data-delete-entity="${entity}" data-id="${item.id}">刪除</button></div>`).join("") || `<p class="empty-inline">尚無資料</p>`}</div></section>`;
 }
 
