@@ -218,7 +218,7 @@ function activatePointer() {
 
 function onPointerDown(event) {
   const handle = event.target.closest("[data-drag-handle]");
-  if (!handle || handle.disabled || event.button !== 0 || event.isPrimary === false) return;
+  if (!handle || handle.disabled || event.isPrimary === false || (event.pointerType === "mouse" && event.button !== 0)) return;
   const item = handle.closest("[data-sort-item]");
   const list = item?.parentElement;
   if (!list?.matches("[data-sort-list]")) return;
